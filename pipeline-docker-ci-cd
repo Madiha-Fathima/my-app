@@ -1,0 +1,29 @@
+node{
+    stage('Scm Checkout'){
+        git credentialsId: 'git-creds', url: 'https://github.com/Madiha-Fathima/my-app.git'
+    }
+    stage('Mvn Package'){
+        def mvnHOME = tool name: 'Maven-3', type: 'maven'
+	    def mvnCMD = "${mvnHOME}/bin/mvn"
+	    sh "${mvnCMD} clean package"
+	}
+    
+    stage('Build Docker Image'){
+	    sh 'docker build -t madiha07/my-app:2.0.0 .'
+   }
+    stage('Push Docker Image'){
+        withCredentials([string(credentialsId: 'docker-pwd', variable: 'dockerHubPwd')]) {
+            sh "docker login -u madiha07 -p ${dockerHubPwd}"
+        }
+        sh 'docker push madiha07/my-app:2.0.0'
+   }
+    stage('Run Container on Dev Server'){
+        def dockerRun = 'docker run -p 8080:8080 -d --name my-app madiha07/my-app:2.0.0'
+        sshagent(['devops-server']) {
+           sh "ssh -o StrictHostKeyChecking=no ec2-user@13.59.17.244 ${dockerRun}"
+        }
+            
+    }
+}
+
+
